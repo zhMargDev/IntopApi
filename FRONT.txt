@@ -1,0 +1,60 @@
+// Firebase SDK настройка
+import firebase from "firebase/app";
+import "firebase/auth";
+
+// Инициализация Firebase (обязательно на клиенте, но не храните ключи в коде)
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+firebase.initializeApp(firebaseConfig);
+
+// Регистрация и вход через email
+async function registerWithEmail(email, password) {
+  await fetch('/auth/register_with_email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+}
+
+async function loginWithEmail(email, password) {
+  await fetch('/auth/login_with_email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+}
+
+// Регистрация через номер телефона (отправка SMS на клиенте)
+const appVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container');
+async function registerWithPhone(phoneNumber) {
+  const confirmationResult = await firebase.auth().signInWithPhoneNumber(phoneNumber, appVerifier);
+  // Сохраните confirmationResult для последующей верификации
+}
+
+// Верификация кода подтверждения (выполняется на клиенте)
+async function verifyPhoneCode(confirmationResult, code) {
+  const result = await confirmationResult.confirm(code);
+  const user = result.user;
+  const idToken = await user.getIdToken();
+  
+  await fetch('/auth/login_with_phone', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id_token: idToken })
+  });
+}
+
+
+.env--------------------
+VUE_APP_FIREBASE_API_KEY=your_firebase_api_key
+VUE_APP_FIREBASE_AUTH_DOMAIN=your_firebase_auth_domain
+VUE_APP_FIREBASE_PROJECT_ID=your_firebase_project_id
+VUE_APP_FIREBASE_STORAGE_BUCKET=your_firebase_storage_bucket
+VUE_APP_FIREBASE_MESSAGING_SENDER_ID=your_firebase_messaging_sender_id
+VUE_APP_FIREBASE_APP_ID=your_firebase_app_id

@@ -1,0 +1,5 @@
+# Ignore the virtual space
+.venv/
+
+# Ignore the Python's compliation's cache
+__pycache__/

@@ -1,0 +1,33 @@
+tg_authorization [complited sucsefulity TRUE]
+update user [complited sucsefulity TRUE]
+
+
+
+
+set-cookie: access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsImV4cCI6MTcyMjgxOTIwMX0.K1VRJs_VbvIj_txmCTvkMSjCwKwTJtXNyB0VZdcmrZQ; HttpOnly; Max-Age=86400; Path=/; SameSite=Lax; Secure
+
+ IPv4: 127.0.0.1
+*   Trying [::1]:8000...
+* connect to ::1 port 8000 from ::1 port 60786 failed: Connection refused
+*   Trying 127.0.0.1:8000...
+* Connected to localhost (127.0.0.1) port 8000
+> PUT /users/update HTTP/1.1
+> Host: localhost:8000
+> User-Agent: curl/8.6.0
+> Accept: */*
+> Cookie: access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIn0.LL8q0ahObVz2P-uEAdpP6Wwf4qm16PryUl2baTnaXoU
+> Content-Length: 642
+> Content-Type: multipart/form-data; boundary=------------------------qklgCa2BQGpg6uVLAuIHNz
+>
+* We are completely uploaded and fine
+< HTTP/1.1 200 OK
+< date: Sat, 03 Aug 2024 22:19:40 GMT
+< server: uvicorn
+< content-length: 44
+< content-type: application/json
+< set-cookie: access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzIyODA5OTgxfQ.hlwtW9KiQHfnOqyefKZSDe4R5R17s_WSGNQ2XIMr3lM; HttpOnly; Max-Age=86400; Path=/; SameSite=Lax; Secure
+<
+* Connection #0 to host localhost left intact
+
+
+2:20
