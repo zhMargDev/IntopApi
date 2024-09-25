@@ -1,5 +1,5 @@
 # Ignore the virtual space
 .venv/
-firebase_conf/firebase_config.json
+firebase_conf/
 # Ignore the Python's compliation's cache
 __pycache__/
