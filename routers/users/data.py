@@ -4,7 +4,18 @@ import shortuuid
 import firebase_conf
 
 from firebase_admin import auth, db, storage
-from fastapi import APIRouter, Depends, HTTPException, Request, File, UploadFile, Form, Query, Header, Response
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Request,
+    File,
+    UploadFile,
+    Form,
+    Query,
+    Header,
+    Response,
+)
 from sqlalchemy.orm import Session, joinedload
 from starlette.responses import JSONResponse
 from datetime import datetime
@@ -23,25 +34,24 @@ from utils.main import delete_picture_from_storage
 router = APIRouter()
 
 
-@router.put('/change_location',
-            summary="Изменение локации пользователя",
-            description=user_documentation.update_user_location)
+@router.put(
+    "/change_location",
+    summary="Изменение локации пользователя",
+    description=user_documentation.update_user_location,
+)
 async def change_user_location(
-    request: Request,
-    current_user: dict = Depends(get_current_user)
+    request: Request, current_user: dict = Depends(get_current_user)
 ):
     request_data = await request.json()
-    uid = request_data.get('uid')
-    lat = request_data.get('lat')
-    lon = request_data.get('lon')
+    uid = request_data.get("uid")
+    lat = request_data.get("lat")
+    lon = request_data.get("lon")
 
     # Проверка данных на правильность
     if not uid or uid != current_user["uid"]:
-        raise HTTPException(
-            status_code=403, detail="Пользователь не идентифицирован.")
+        raise HTTPException(status_code=403, detail="Пользователь не идентифицирован.")
     if not lat or not lon:
-        raise HTTPException(
-            status_code=422, detail="Неправильные данные локации.")
+        raise HTTPException(status_code=422, detail="Неправильные данные локации.")
 
     # Проверка локации на тип float
     try:
@@ -49,7 +59,8 @@ async def change_user_location(
         lon = float(lon)
     except:
         raise HTTPException(
-            status_code=422, detail="Лоакция должна быть в формате цифры с запятой.")
+            status_code=422, detail="Лоакция должна быть в формате цифры с запятой."
+        )
 
     try:
         # Получение пользователя
@@ -57,27 +68,24 @@ async def change_user_location(
         user = user_ref.get()
 
         if not user:
-            raise HTTPException(
-                status_code=404, detail="Пользователь не найден.")
+            raise HTTPException(status_code=404, detail="Пользователь не найден.")
 
         # Обновляем или создаем локацию
-        user_ref.update({
-            'location': {
-                'lat': float(lat),
-                'lon': float(lon)
-            }
-        })
+        user_ref.update({"location": {"lat": float(lat), "lon": float(lon)}})
 
         return {"message": "Локация пользователя обновлена."}
 
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Ошибка доступа к базе данных: {e}")
+            status_code=500, detail=f"Ошибка доступа к базе данных: {e}"
+        )
 
 
-@router.put("/update",
-            summary="Обновление данных пользователя",
-            description=user_documentation.update_user)
+@router.put(
+    "/update",
+    summary="Обновление данных пользователя",
+    description=user_documentation.update_user,
+)
 async def update_user(
     current_user: dict = Depends(get_current_user),
     uid: str = Form(...),
@@ -100,39 +108,40 @@ async def update_user(
     """
 
     try:
-        if current_user['uid'] != uid:
+        if current_user["uid"] != uid:
             raise HTTPException(
-                status_code=401, details="Неидентифицированный пользователь.")
+                status_code=401, details="Неидентифицированный пользователь."
+            )
         # Получаем данные пользователя из Realtime Database
         user_ref = db.reference(f"users/{uid}")
         user_data = user_ref.get()
 
         # Проверяем отправлен ли параметр и изменяем его
         if first_name:
-            user_data['first_name'] = first_name
+            user_data["first_name"] = first_name
         if last_name:
-            user_data['last_name'] = last_name
+            user_data["last_name"] = last_name
         if username:
-            user_data['username'] = username
+            user_data["username"] = username
         if phone_number:
-            user_data['phone_number'] = phone_number
+            user_data["phone_number"] = phone_number
         if email:
-            user_data['email'] = email
+            user_data["email"] = email
         if region_id:
-            user_data['region_id'] = region_id
+            user_data["region_id"] = region_id
 
         if avatar:
             # Если у пользователя была картинка удаляем его
-            if user_data['avatar']:
-                await delete_picture_from_storage(user_data['avatar'])
+            if user_data["avatar"]:
+                await delete_picture_from_storage(user_data["avatar"])
 
             # Сохраняем новую картинку
             bucket = storage.bucket()
             # Используем исходное имя файла
             file_name = avatar.filename
-            blob = bucket.blob(f'users/{uid}/{file_name}')
+            blob = bucket.blob(f"users/{uid}/{file_name}")
             blob.upload_from_file(avatar.file, avatar.content_type)
-            user_data['avatar'] = blob.public_url
+            user_data["avatar"] = blob.public_url
 
         # Обновляем время последней активности
         user_data["last_active"] = datetime.now().isoformat()
@@ -145,17 +154,20 @@ async def update_user(
         raise HTTPException(status_code=401, detail="Недействительный UID")
 
 
-@router.delete('/deactivate',
-               summary="Деактивация (удаление) аккаунта пользователя",
-               description=user_documentation.deactivate_user)
+@router.delete(
+    "/deactivate",
+    summary="Деактивация (удаление) аккаунта пользователя",
+    description=user_documentation.deactivate_user,
+)
 async def deactivate_account(
     request: Request,
     current_user: dict = Depends(get_current_user),
 ):
     try:
-        if current_user['uid'] != request.uid:
+        if current_user["uid"] != request.uid:
             raise HTTPException(
-                status_code=401, details="Неидентифицированный пользователь.")
+                status_code=401, details="Неидентифицированный пользователь."
+            )
         # Получить пользователя по UID
         user = auth.get_user(request.uid)
 
@@ -169,9 +181,11 @@ async def deactivate_account(
         raise HTTPException(status_code=401, detail="Недействительный UID")
 
 
-@router.get('/by_filters',
-            summary="Получение пользователей по фильтрам",
-            description=user_documentation.get_users_by_filters)
+@router.get(
+    "/by_filters",
+    summary="Получение пользователей по фильтрам",
+    description=user_documentation.get_users_by_filters,
+)
 async def get_users_by_filters(
     filters: UserGetByFilters = Depends(),
 ):
@@ -186,32 +200,47 @@ async def get_users_by_filters(
     """
 
     # Получаем ссылку на узел пользователей
-    ref = db.reference('/users')
+    ref = db.reference("/users")
 
     query = ref
 
     # Применяем фильтры
     if filters.uid is not None:
-        query = query.order_by_child('uid').equal_to(filters.uid)
+        query = query.order_by_child("uid").equal_to(filters.uid)
     if filters.role is not None:
-        query = query.order_by_child('role').equal_to(filters.role)
+        query = query.order_by_child("role").equal_to(filters.role)
     if filters.username:
-        query = query.order_by_child('username').start_at(
-            filters.username).end_at(filters.username + '\uf8ff')
+        query = (
+            query.order_by_child("username")
+            .start_at(filters.username)
+            .end_at(filters.username + "\uf8ff")
+        )
     if filters.first_name:
-        query = query.order_by_child('first_name').start_at(
-            filters.first_name).end_at(filters.first_name + '\uf8ff')
+        query = (
+            query.order_by_child("first_name")
+            .start_at(filters.first_name)
+            .end_at(filters.first_name + "\uf8ff")
+        )
     if filters.last_name:
-        query = query.order_by_child('last_name').start_at(
-            filters.last_name).end_at(filters.last_name + '\uf8ff')
+        query = (
+            query.order_by_child("last_name")
+            .start_at(filters.last_name)
+            .end_at(filters.last_name + "\uf8ff")
+        )
     if filters.phone_number:
-        query = query.order_by_child('phone_number').start_at(
-            filters.phone_number).end_at(filters.phone_number + '\uf8ff')
+        query = (
+            query.order_by_child("phone_number")
+            .start_at(filters.phone_number)
+            .end_at(filters.phone_number + "\uf8ff")
+        )
     if filters.email:
-        query = query.order_by_child('email').start_at(
-            filters.email).end_at(filters.email + '\uf8ff')
+        query = (
+            query.order_by_child("email")
+            .start_at(filters.email)
+            .end_at(filters.email + "\uf8ff")
+        )
     if filters.region_id is not None:
-        query = query.order_by_child('region_id').equal_to(filters.region_id)
+        query = query.order_by_child("region_id").equal_to(filters.region_id)
 
     # Получаем результаты
     snapshot = await query.get()
@@ -221,7 +250,7 @@ async def get_users_by_filters(
     async for user_data in snapshot.each():
         user_data = user_data.val()
         # Удаляем поле password, если оно существует
-        user_data.pop('password', None)
+        user_data.pop("password", None)
         user = User(**user_data)
         users.append(user)
 
@@ -231,70 +260,70 @@ async def get_users_by_filters(
     return users
 
 
-@router.get('/get_by_id',
-            summary="Получение пользователь по UID.",
-            description=user_documentation.get_by_id)
+@router.get(
+    "/get_by_id",
+    summary="Получение пользователь по UID.",
+    description=user_documentation.get_by_id,
+)
 async def getUserById(uid: str):
     try:
         # Получаем ссылку на узел пользователей
-        ref = db.reference(f'/users/{uid}')
+        ref = db.reference(f"/users/{uid}")
 
         # Получаем данные пользователя
         user_data = ref.get()
 
         if user_data is None:
-            raise HTTPException(
-                status_code=404, detail="Пользователь не найден")
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
 
         # Удаляем поле пароля
-        if 'password' in user_data:
-            del user_data['password']
+        if "password" in user_data:
+            del user_data["password"]
 
         return user_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post('/like_user_event',
-             summary="Добавление или удаление пользователя из лайков.",
-             description=user_documentation.like_user_event)
+@router.post(
+    "/like_user_event",
+    summary="Добавление или удаление пользователя из лайков.",
+    description=user_documentation.like_user_event,
+)
 async def likeUserEvent(
-    request: Request,
-    current_user: dict = Depends(get_current_user)
+    request: Request, current_user: dict = Depends(get_current_user)
 ):
     try:
         # Получаем uid из POST запроса
         data = await request.json()
-        uid = data.get('uid')
+        uid = data.get("uid")
 
         if not uid:
             raise HTTPException(status_code=400, detail="UID не предоставлен")
 
         # Проверка на существования пользователя по отправленному uid
-        u_ref = db.reference(f'/users/{uid}')
+        u_ref = db.reference(f"/users/{uid}")
         u_user_data = u_ref.get()
 
         if u_user_data is None:
-            raise HTTPException(
-                status_code=404, detail="Пользователь не найден")
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
 
         # Получаем данные текущего пользователя из Realtime Database
         ref = db.reference(f'/users/{current_user["uid"]}')
         user_data = ref.get()
 
         if user_data is None:
-            raise HTTPException(
-                status_code=403, detail="Недействительный токен")
+            raise HTTPException(status_code=403, detail="Недействительный токен")
 
         # Проверяем, есть ли список liked_users
-        if 'liked_users' not in user_data:
-            user_data['liked_users'] = []
+        if "liked_users" not in user_data:
+            user_data["liked_users"] = []
 
         res_status_code = 200
 
         # Проверяем, есть ли uid в списке liked_users
-        if uid in user_data['liked_users']:
-            user_data['liked_users'].remove(uid)
+        if uid in user_data["liked_users"]:
+            user_data["liked_users"].remove(uid)
             # Если массив стал пустым, удаляем его
             res_status_code = 200
             ref.update(user_data)
@@ -302,13 +331,16 @@ async def likeUserEvent(
             print(user_data)
         else:
             # Если пользователя не было в массиве, то добавляем
-            user_data['liked_users'].append(uid)
+            user_data["liked_users"].append(uid)
             res_status_code = 201
             ref.update(user_data)
 
         # Обновляем данные пользователя в базе данных
 
-        return Response(status_code=res_status_code, content='{"message": "Пользователь удален из лайков"}')
+        return Response(
+            status_code=res_status_code,
+            content='{"message": "Пользователь удален из лайков"}',
+        )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
