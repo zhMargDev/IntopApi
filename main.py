@@ -23,6 +23,8 @@ origins = [
     "https://localhost.tiangolo.com",
     "http://localhost",
     "http://localhost:8080",
+    "https://intop-project.web.app/",
+    "http://intop-project.web.app/"
 ]
 
 app.add_middleware(
