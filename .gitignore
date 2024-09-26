@@ -3,3 +3,6 @@
 
 # Ignore the Python's compliation's cache
 __pycache__/
+
+
+firebase_conf/firebase_config.json
