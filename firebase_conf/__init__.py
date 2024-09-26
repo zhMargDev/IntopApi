@@ -1,8 +1,9 @@
-import firebase_admin, pyrebase
+import firebase_admin
+import pyrebase
 from firebase_admin import credentials
 from firebase_admin import db
 
-cred = credentials.Certificate('firebase_conf/firebase_config.json')
+cred = credentials.Certificate('firebase_config_json/firebase_config.json')
 firebase_admin.initialize_app(cred, {
     'databaseURL': 'https://intop-project-default-rtdb.firebaseio.com/',
     'storageBucket': 'intop-project.appspot.com'
