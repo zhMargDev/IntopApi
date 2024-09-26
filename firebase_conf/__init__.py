@@ -5,7 +5,7 @@ from firebase_admin import db
 cred = credentials.Certificate('firebase_conf/firebase_config.json')
 firebase_admin.initialize_app(cred, {
     'databaseURL': 'https://intop-project-default-rtdb.firebaseio.com/',
-    'storageBucket': 'gs://intop-project.appspot.com'
+    'storageBucket': 'intop-project.appspot.com'
 })
 
 # Инициализация pyrebase

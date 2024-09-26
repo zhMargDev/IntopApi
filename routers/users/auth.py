@@ -2,12 +2,12 @@ import firebase_admin
 import uuid
 import requests
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import APIRouter, HTTPException, Depends, Request, status, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
-from firebase_admin import auth, db, credentials, messaging
+from firebase_admin import auth, db, credentials, messaging, storage
 from firebase_admin.exceptions import FirebaseError
 
 from firebase_conf import firebase, FIREBASE_API_KEY
@@ -15,7 +15,7 @@ from database import get_db
 from models.models import User, Role
 from schemas.user import *
 from utils.token import decode_access_token, update_token
-from utils.user import update_last_active
+from utils.user import update_last_active, upload_user_avatar
 from schemas.sms import *
 from documentation.users import auth as authorization_documentation
 from utils.user import get_current_user
@@ -242,6 +242,15 @@ async def auth_with_google(data: GoogleAccountUser):
 
         # Проверяем, существует ли пользователь
         existing_user_data = db.reference("users").child(data.uid).get()
+        
+        # Скачиваем изображение и загружаем его в Firebase Storage
+        avatar_url = data.avatar
+        response = requests.get(avatar_url)
+        if not existing_user_data or 'avatar' not in existing_user_data:
+            if response.status_code == 200:
+                res = await upload_user_avatar(data.uid)
+                if not res:
+                    raise HTTPException(status_code=400, details="Ошибка при добавлении картинки.")
 
         # Если пользователь существует, обновляем только измененные поля
         if existing_user_data:

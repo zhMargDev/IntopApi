@@ -19,20 +19,18 @@ app = FastAPI()
 
 # Настройка CORS
 origins = [
-    "https://intop.uz",
+    "http://localhost.tiangolo.com",
+    "https://localhost.tiangolo.com",
     "http://localhost",
-    "http://127.0.0.1:8000",  # Порт по умолчанию для FastAPI
     "http://localhost:8080",
-    "http://localhost:8080/",
 ]
-
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],  # Позволяет все HTTP-методы
-    allow_headers=["*"],  # Позволяет все заголовки
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

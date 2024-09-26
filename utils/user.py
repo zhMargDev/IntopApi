@@ -1,9 +1,9 @@
 import firebase_conf
 
 from fastapi import HTTPException, Header, Depends, status
-from firebase_admin import auth, credentials, db
+from firebase_admin import auth, credentials, db, storage
 from fastapi.security import OAuth2PasswordBearer
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -45,3 +45,11 @@ async def update_last_active(uid: str):
 
     # Обновление данных пользователя
     user_ref.update(new_data)
+
+async def upload_user_avatar(uid):
+    bucket = storage.bucket()
+    blob = bucket.blob(f'users/avatars/{uid}.jpg')
+    blob.upload_from_string(response.content, content_type='image/jpeg')
+    new_avatar_url = blob.generate_signed_url(timedelta(seconds=300), method='GET')
+    user_data_dict['avatar'] = new_avatar_url
+    return True
