@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # Функция для получения текущего пользователя на основе токена авторизации
+
+
 def get_current_user(token: str = Depends(oauth2_scheme)):
     try:
         # Проверка токена Firebase
@@ -27,7 +29,8 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
             detail=str(e),
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
+
 async def update_last_active(uid: str):
     """
     Обновляет поле last_active для пользователя по UID.
@@ -46,10 +49,12 @@ async def update_last_active(uid: str):
     # Обновление данных пользователя
     user_ref.update(new_data)
 
-async def upload_user_avatar(uid):
+
+async def upload_user_avatar(res_content, uid):
     bucket = storage.bucket()
     blob = bucket.blob(f'users/avatars/{uid}.jpg')
-    blob.upload_from_string(response.content, content_type='image/jpeg')
-    new_avatar_url = blob.generate_signed_url(timedelta(seconds=300), method='GET')
-    user_data_dict['avatar'] = new_avatar_url
-    return True
+    blob.upload_from_string(res_content, content_type='image/jpeg')
+    new_avatar_url = blob.generate_signed_url(
+        timedelta(seconds=300), method='GET')
+
+    return new_avatar_url

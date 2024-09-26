@@ -229,3 +229,86 @@ async def get_users_by_filters(
         raise HTTPException(status_code=404, detail="Пользователи не найдены")
 
     return users
+
+
+@router.get('/get_by_id',
+            summary="Получение пользователь по UID.",
+            description=user_documentation.get_by_id)
+async def getUserById(uid: str):
+    try:
+        # Получаем ссылку на узел пользователей
+        ref = db.reference(f'/users/{uid}')
+
+        # Получаем данные пользователя
+        user_data = ref.get()
+
+        if user_data is None:
+            raise HTTPException(
+                status_code=404, detail="Пользователь не найден")
+
+        # Удаляем поле пароля
+        if 'password' in user_data:
+            del user_data['password']
+
+        return user_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post('/like_user_event',
+             summary="Добавление или удаление пользователя из лайков.",
+             description=user_documentation.like_user_event)
+async def likeUserEvent(
+    request: Request,
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        # Получаем uid из POST запроса
+        data = await request.json()
+        uid = data.get('uid')
+
+        if not uid:
+            raise HTTPException(status_code=400, detail="UID не предоставлен")
+
+        # Проверка на существования пользователя по отправленному uid
+        u_ref = db.reference(f'/users/{uid}')
+        u_user_data = u_ref.get()
+
+        if u_user_data is None:
+            raise HTTPException(
+                status_code=404, detail="Пользователь не найден")
+
+        # Получаем данные текущего пользователя из Realtime Database
+        ref = db.reference(f'/users/{current_user["uid"]}')
+        user_data = ref.get()
+
+        if user_data is None:
+            raise HTTPException(
+                status_code=403, detail="Недействительный токен")
+
+        # Проверяем, есть ли список liked_users
+        if 'liked_users' not in user_data:
+            user_data['liked_users'] = []
+
+        res_status_code = 200
+
+        # Проверяем, есть ли uid в списке liked_users
+        if uid in user_data['liked_users']:
+            user_data['liked_users'].remove(uid)
+            # Если массив стал пустым, удаляем его
+            res_status_code = 200
+            ref.update(user_data)
+
+            print(user_data)
+        else:
+            # Если пользователя не было в массиве, то добавляем
+            user_data['liked_users'].append(uid)
+            res_status_code = 201
+            ref.update(user_data)
+
+        # Обновляем данные пользователя в базе данных
+
+        return Response(status_code=res_status_code, content='{"message": "Пользователь удален из лайков"}')
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

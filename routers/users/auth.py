@@ -242,15 +242,17 @@ async def auth_with_google(data: GoogleAccountUser):
 
         # Проверяем, существует ли пользователь
         existing_user_data = db.reference("users").child(data.uid).get()
-        
+
         # Скачиваем изображение и загружаем его в Firebase Storage
         avatar_url = data.avatar
         response = requests.get(avatar_url)
         if not existing_user_data or 'avatar' not in existing_user_data:
             if response.status_code == 200:
-                res = await upload_user_avatar(data.uid)
+                res = await upload_user_avatar(response.content, data.uid)
                 if not res:
-                    raise HTTPException(status_code=400, details="Ошибка при добавлении картинки.")
+                    raise HTTPException(
+                        status_code=400, details="Ошибка при добавлении картинки.")
+                user_data_dict['avatar'] = res
 
         # Если пользователь существует, обновляем только измененные поля
         if existing_user_data:
