@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session, joinedload
 from starlette.responses import JSONResponse
 from datetime import datetime
 
+from firebase_conf import firebase
 from database import get_db
 from models.models import User
 from schemas.user import UserGetByFilters
@@ -27,8 +28,7 @@ from utils.token import decode_access_token, update_token
 from config import BASE_DIR
 from documentation.users import data as user_documentation
 from schemas.user import *
-from utils.user import get_current_user, update_last_active
-from utils.main import delete_picture_from_storage
+from utils.user import get_current_user, update_last_active, upload_user_avatar_with_file, delete_picture_from_storage
 
 
 router = APIRouter()
@@ -88,60 +88,59 @@ async def change_user_location(
 )
 async def update_user(
     current_user: dict = Depends(get_current_user),
-    uid: str = Form(...),
-    first_name: str = Form(None),
-    last_name: str = Form(None),
+    uid: str = Form(None),
     username: str = Form(None),
-    phone_number: str = Form(None),
-    email: str = Form(None),
-    region_id: int = Form(None),
     avatar: UploadFile = File(None),
+    old_password: str = Form(None),
+    new_password: str = Form(None)
 ):
-    """
-    Получает новые данные пользователя и обновляет время последней активности.
-
-    Args:
-        uid: UID пользователя.
-        - отсальные данные
-    Returns:
-        dict: Словарь с данными пользователя.
-    """
-
     try:
         if current_user["uid"] != uid:
             raise HTTPException(
-                status_code=401, details="Неидентифицированный пользователь."
+                status_code=403, detail="Неидентифицированный пользователь."
             )
+
         # Получаем данные пользователя из Realtime Database
         user_ref = db.reference(f"users/{uid}")
         user_data = user_ref.get()
 
+        update_status = {
+            "username": "no",
+            "avatar": "no",
+            "password": "no"
+        }
+
         # Проверяем отправлен ли параметр и изменяем его
-        if first_name:
-            user_data["first_name"] = first_name
-        if last_name:
-            user_data["last_name"] = last_name
         if username:
             user_data["username"] = username
-        if phone_number:
-            user_data["phone_number"] = phone_number
-        if email:
-            user_data["email"] = email
-        if region_id:
-            user_data["region_id"] = region_id
+            update_status["username"] = "success"
+        else:
+            update_status["username"] = "Имя не указано."
 
         if avatar:
-            # Если у пользователя была картинка удаляем его
-            if user_data["avatar"]:
+            # Если у пользователя была картинка, удаляем её
+            if user_data.get("avatar"):
                 await delete_picture_from_storage(user_data["avatar"])
 
-            # Сохраняем новую картинку
-            bucket = storage.bucket()
-            # Используем исходное имя файла
-            file_name = avatar.filename
-            blob = bucket.blob(f"users/{uid}/{file_name}")
-            blob.upload_from_file(avatar.file, avatar.content_type)
-            user_data["avatar"] = blob.public_url
+            user_avatar_url = await upload_user_avatar_with_file(avatar, uid)
+            user_data["avatar"] = user_avatar_url
+            update_status["avatar"] = "success"
+
+        py_auth = firebase.auth()
+
+        if new_password:
+            if not old_password:
+                update_status["password"] = "Необходимо указать старый пароль для изменения пароля"
+            else:
+                # Проверяем старый пароль
+                try:
+                    # Повторная аутентификация с использованием старого пароля
+                    user = py_auth.sign_in_with_email_and_password(user_data["email"], old_password)
+                    # Обновление пароля
+                    auth.update_user(uid, password=new_password)
+                    update_status["password"] = "success"
+                except Exception as e:
+                    update_status["password"] = "Действующий пароль указан неверно."
 
         # Обновляем время последней активности
         user_data["last_active"] = datetime.now().isoformat()
@@ -149,10 +148,11 @@ async def update_user(
         # Записываем обновленные данные в базу
         user_ref.set(user_data)
 
-        return user_data
-    except auth.AuthError as e:
-        raise HTTPException(status_code=401, detail="Недействительный UID")
-
+        return update_status
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка на стороне сервера: {str(e)}")
 
 @router.delete(
     "/deactivate",
@@ -177,7 +177,7 @@ async def deactivate_account(
 
         return {"message": "Аккаунт успешно удалён."}
 
-    except auth.AuthError:
+    except:
         raise HTTPException(status_code=401, detail="Недействительный UID")
 
 

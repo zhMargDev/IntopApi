@@ -22,7 +22,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
                 detail="Invalid authentication credentials",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        return {"uid": uid}
+        return {"uid": uid, "idToken": token}
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -49,7 +49,6 @@ async def update_last_active(uid: str):
     # Обновление данных пользователя
     user_ref.update(new_data)
 
-
 async def upload_user_avatar(res_content, uid):
     bucket = storage.bucket()
     blob = bucket.blob(f'users/avatars/{uid}.jpg')
@@ -58,3 +57,29 @@ async def upload_user_avatar(res_content, uid):
         timedelta(seconds=300), method='GET')
 
     return new_avatar_url
+
+async def upload_user_avatar_with_file(file_path, uid):
+    # Инициализация клиента для работы с облачным хранилищем
+    storage_client = storage.Client()
+
+    # Получение ссылки на бакет
+    bucket = storage_client.bucket('your-bucket-name')
+
+    # Создание объекта blob для загрузки файла
+    blob = bucket.blob(f'users/avatars/{uid}.jpg')
+
+    # Загрузка файла в облачное хранилище
+    with open(file_path, 'rb') as file:
+        blob.upload_from_file(file, content_type='image/jpeg')
+
+    # Генерация URL для доступа к файлу
+    new_avatar_url = blob.generate_signed_url(
+        timedelta(seconds=300), method='GET')
+
+    return new_avatar_url
+
+# Пример функции для удаления картинки из Firebase Storage
+async def delete_picture_from_storage(picture_url: str):
+    bucket = storage.bucket()
+    blob = bucket.blob(picture_url.split('/')[-1])
+    blob.delete()
