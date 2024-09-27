@@ -103,11 +103,6 @@ async def update_user(
         # Получаем данные пользователя из Realtime Database
         user_ref = db.reference(f"users/{uid}")
         user_data = user_ref.get()
-        
-        if user_data is None:
-            raise HTTPException(
-                status_code=404, detail="Пользователь не найден."
-            )
 
         update_status = {
             "username": "no",
