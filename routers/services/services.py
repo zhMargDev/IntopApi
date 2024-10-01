@@ -40,6 +40,7 @@ from utils.services import (
     get_service_by_id,
     update_service_in_db,
     delete_service_from_db,
+    upload_service_image
 )
 from utils.main import delete_picture_from_storage
 
@@ -177,28 +178,26 @@ async def add_new_service(
     lat: float = Form(...),
     lon: float = Form(...),
     description: str = Form(...),
-    price: float = Form(...),
+    price: int = Form(...),
     currency: str = Form(...),
-    date: int = Form(None),
-    email: str = Form(None),
-    phone_number: str = Form(None),
-    is_store: bool = Form(...),
-    picture: UploadFile = File(...),
+    pictures: List[UploadFile] = File(None),
     service_category_id: int = Form(...),
     payment_method_id: int = Form(None),
-    working_times: list = Form(None),
+    start_time: str = Form(...),
+    end_time: str = Form(...)
 ):
     # Проверка пользователя на авторизованность
     if uid != current_user["uid"]:
         raise HTTPException(
-            status_code=401, details="Неиндентифицированный пользователь."
+            status_code=401, detail="Неиндентифицированный пользователь."
         )
 
     # Проверка существования категории сервиса
     service_category = await get_services_categories(id=service_category_id)
     if not service_category:
         raise HTTPException(
-            status_code=404, detail="Категория сервиса не найдена")
+            status_code=404, detail="Категория сервиса не найдена"
+        )
 
     # Проверка существования способа оплаты, если указан
     if payment_method_id:
@@ -218,20 +217,24 @@ async def add_new_service(
 
     service_id = check_id_unique(service_id)
 
-    # Загрузка картинки в Firebase Storage
-    bucket = storage.bucket()
-    blob = bucket.blob(f"services/{service_id}/{picture.filename}")
-    blob.upload_from_file(picture.file, content_type=picture.content_type)
+    if pictures:
+        # Загрузка картинок в Firebase Storage
+        picture_urls = []
+        for picture in pictures:
+            # Чтение содержимого файла
+            picture.file.seek(0)
+            res_content = picture.file.read()
 
-    # Получение публичного URL загруженной картинки
-    picture_url = blob.public_url
+            # Загрузка файла и получение URL-адреса
+            new_image_url = await upload_service_image(res_content, service_id, picture.content_type)
+            picture_urls.append(new_image_url)
 
     # Сохранение информации о новой услуге в базу данных
     service_data = {
         "id": service_id,
         "rating_count": 0,
         "views_count": 0,
-        "is_active": False,
+        "is_active": True,
         "name": name,
         "lat": lat,
         "lon": lon,
@@ -239,25 +242,23 @@ async def add_new_service(
         "price": price,
         "currency": currency,
         "owner_id": uid,
-        "date": date,
-        "email": email,
-        "phone_number": phone_number,
-        "is_store": is_store,
-        "picture_url": picture_url,
+        "is_store": False,
         "service_category_id": service_category_id,
-        "payment_method_id": payment_method_id,
+        "start_time": start_time,
+        "end_time": end_time,
         "created_at": datetime.now().isoformat(),
     }
 
+    if pictures:
+        service_data["pictures"] = picture_urls
     # Если имеются время работы то добавляем их
-    if working_times:
-        service_data["working_times"] = working_times
+    if payment_method_id:
+        service_data["payment_method_id"] = payment_method_id
 
     # Добавляем новую запись в Firebase Realtime Database
     db.reference(f"/services/{service_id}").set(service_data)
 
     return {"message": "Услуга успешно добавлена", "service": service_data}
-
 
 @router.put(
     "/update",
@@ -268,16 +269,18 @@ async def update_service(
     current_user: dict = Depends(get_current_user),
     uid: str = Form(...),
     service_id: str = Form(...),
-    name: Optional[str] = Form(None),
-    lat: Optional[float] = Form(None),
-    lon: Optional[float] = Form(None),
-    description: Optional[str] = Form(None),
-    price: Optional[float] = Form(None),
-    date: Optional[int] = Form(None),
-    picture: Optional[bytes] = File(None),
-    phone_number: Optional[str] = Form(None),
-    email: Optional[str] = Form(None),
-    working_times: Optional[list] = Form(None),
+    name: str = Form(...),
+    lat: float = Form(...),
+    lon: float = Form(...),
+    description: str = Form(...),
+    price: int = Form(...),
+    currency: str = Form(...),
+    new_pictures: List[UploadFile] = File(None),
+    old_pictures: List[str] = Form(None),
+    service_category_id: int = Form(...),
+    payment_method_id: int = Form(None),
+    start_time: str = Form(...),
+    end_time: str = Form(...)
 ):
     # Получаем сервис по service_id
     service = await get_service_by_id(service_id)
@@ -291,35 +294,55 @@ async def update_service(
         )
 
     # Обновляем данные сервиса, которые были переданы в запросе
-    updated_data = {}
-    if name is not None:
-        updated_data["name"] = name
-    if lat is not None:
-        updated_data["lat"] = lat
-    if lon is not None:
-        updated_data["lon"] = lon
-    if description is not None:
-        updated_data["description"] = description
-    if price is not None:
-        updated_data["price"] = price
-    if date is not None:
-        updated_data["date"] = date
-    if phone_number is not None:
-        updated_data["phone_number"] = phone_number
-    if email is not None:
-        updated_data["email"] = email
-    if working_times is not None:
-        updated_data["working_times"] = working_times
+    updated_data = {
+        "id": service_id,
+        "rating_count": 0,
+        "views_count": 0,
+        "is_active": True,
+        "name": name,
+        "lat": lat,
+        "lon": lon,
+        "description": description,
+        "price": price,
+        "currency": currency,
+        "owner_id": uid,
+        "is_store": False,
+        "service_category_id": service_category_id,
+        "start_time": start_time,
+        "end_time": end_time
+    }
 
-    # Если передана картинка, загружаем её в Firebase Storage и обновляем URL картинки
-    if picture is not None:
-        if updated_data["picture_url"]:
-            await delete_picture_from_storage(updated_data["picture_url"])
+    # Добавление новых картинок
+    if new_pictures:
+        picture_urls = []
+        for picture in new_pictures:
+            # Чтение содержимого файла
+            picture.file.seek(0)
+            res_content = picture.file.read()
 
-        bucket = storage.bucket()
-        blob = bucket.blob(f"services/{service_id}/{picture.filename}")
-        blob.upload_from_file(picture, picture.content_type)
-        updated_data["picture_url"] = blob.public_url
+            # Загрузка файла и получение URL-адреса
+            new_image_url = await upload_service_image(res_content, service_id, picture.content_type)
+            picture_urls.append(new_image_url)
+
+    # Удаление старых картинок, которых нет в old_pictures
+    bucket = storage.bucket()
+    current_pictures = service.get("pictures", [])
+    if old_pictures:
+        for picture_url in current_pictures:
+            if picture_url not in old_pictures:
+                blob = bucket.blob(picture_url.split('/')[-1])
+                blob.delete()
+
+    # Обновление списка картинок
+    if new_pictures or old_pictures:
+        updated_pictures = old_pictures if old_pictures else []
+        if new_pictures:
+            updated_pictures.extend(picture_urls)
+        updated_data["pictures"] = updated_pictures
+
+    # Если имеются время работы то добавляем их
+    if payment_method_id:
+        updated_data["payment_method_id"] = payment_method_id
 
     # Обновляем сервис в базе данных
     await update_service_in_db(service_id, updated_data)
@@ -328,7 +351,6 @@ async def update_service(
         "message": "Сервис успешно обновлен",
         "service": {**service, **updated_data},
     }
-
 
 @router.delete(
     "/delete",
@@ -354,10 +376,11 @@ async def delete_service(
             status_code=403, detail="У вас нет прав для удаления этого сервиса."
         )
 
-    # Удаляем картинки, связанные с услугой
-    picture_url = service.get("picture_url")
-    if picture_url:
-        await delete_picture_from_storage(picture_url)
+    # Удаляем папку с картинками, связанные с услугой
+    bucket = storage.bucket()
+    blobs = bucket.list_blobs(prefix=f"services/{service_id}")
+    for blob in blobs:
+        blob.delete()
 
     # Удаляем сервис из базы данных
     await delete_service_from_db(service_id)
@@ -430,7 +453,8 @@ async def get_user_booked_services(current_user: dict = Depends(get_current_user
         raise HTTPException(status_code=403, detail="Недействительный токен")
 
     if 'booked_services' not in user_data:
-        raise HTTPException(status_code=404, detail="Забронированных услуг не найдено")
+        raise HTTPException(
+            status_code=404, detail="Забронированных услуг не найдено")
 
     booked_services_ids = user_data['booked_services']
     data = []
@@ -458,3 +482,31 @@ async def get_user_booked_services(current_user: dict = Depends(get_current_user
         })
 
     return data
+
+@router.get('/get_my_services',
+            summary="Получение всех услуг авторизованного пользователя.")
+async def get_my_services(
+    uid: str,
+    current_user: dict = Depends(get_current_user)
+):
+    # Проверка пользователя на авторизованность
+    if uid != current_user["uid"]:
+        raise HTTPException(
+            status_code=401, detail="Неиндентифицированный пользователь."
+        )
+
+    py_db = firebase.database()
+
+    # Получение данных из Firebase
+    services_ref = py_db.child("services").order_by_child("owner_id").equal_to(uid).get()
+
+    if not services_ref.val():
+        raise HTTPException(
+            status_code=404, detail="Услуги не найдены."
+        )
+
+    # Преобразование данных в список и сортировка в обратном порядке
+    services = list(services_ref.val().values())
+    services.reverse()
+
+    return services

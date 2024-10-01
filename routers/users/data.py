@@ -49,9 +49,11 @@ async def change_user_location(
 
     # Проверка данных на правильность
     if not uid or uid != current_user["uid"]:
-        raise HTTPException(status_code=403, detail="Пользователь не идентифицирован.")
+        raise HTTPException(
+            status_code=403, detail="Пользователь не идентифицирован.")
     if not lat or not lon:
-        raise HTTPException(status_code=422, detail="Неправильные данные локации.")
+        raise HTTPException(
+            status_code=422, detail="Неправильные данные локации.")
 
     # Проверка локации на тип float
     try:
@@ -68,7 +70,8 @@ async def change_user_location(
         user = user_ref.get()
 
         if not user:
-            raise HTTPException(status_code=404, detail="Пользователь не найден.")
+            raise HTTPException(
+                status_code=404, detail="Пользователь не найден.")
 
         # Обновляем или создаем локацию
         user_ref.update({"location": {"lat": float(lat), "lon": float(lon)}})
@@ -135,7 +138,8 @@ async def update_user(
                 # Проверяем старый пароль
                 try:
                     # Повторная аутентификация с использованием старого пароля
-                    user = py_auth.sign_in_with_email_and_password(user_data["email"], old_password)
+                    user = py_auth.sign_in_with_email_and_password(
+                        user_data["email"], old_password)
                     # Обновление пароля
                     auth.update_user(uid, password=new_password)
                     update_status["password"] = "success"
@@ -152,7 +156,9 @@ async def update_user(
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка на стороне сервера: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Ошибка на стороне сервера: {str(e)}")
+
 
 @router.delete(
     "/deactivate",
@@ -274,7 +280,8 @@ async def getUserById(uid: str):
         user_data = ref.get()
 
         if user_data is None:
-            raise HTTPException(status_code=404, detail="Пользователь не найден")
+            raise HTTPException(
+                status_code=404, detail="Пользователь не найден")
 
         # Удаляем поле пароля
         if "password" in user_data:
@@ -306,14 +313,16 @@ async def likeUserEvent(
         u_user_data = u_ref.get()
 
         if u_user_data is None:
-            raise HTTPException(status_code=404, detail="Пользователь не найден")
+            raise HTTPException(
+                status_code=404, detail="Пользователь не найден")
 
         # Получаем данные текущего пользователя из Realtime Database
         ref = db.reference(f'/users/{current_user["uid"]}')
         user_data = ref.get()
 
         if user_data is None:
-            raise HTTPException(status_code=403, detail="Недействительный токен")
+            raise HTTPException(
+                status_code=403, detail="Недействительный токен")
 
         # Проверяем, есть ли список liked_users
         if "liked_users" not in user_data:

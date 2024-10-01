@@ -72,19 +72,16 @@ class ServiceSchema(BaseModel):
     description: Optional[str] = None
     price: float
     currency: str
-    owner_id: int
+    owner_id: str
     is_active: bool
     date: Optional[int] = None
-    picture: Optional[str] = None
-    phone_number: Optional[str] = None
-    email: Optional[str] = None
+    pictures: Optional[list] = None
     service_category_id: int
-    payment_method_id: int
+    payment_method_id: Optional[int] = None
     is_store: bool
+    start_time: str
+    end_time: str
     created_at: str
-    payment_method: Optional[str] = None
-    working_times: Optional[list] = None
-
 
 class ServiceCreate(BaseModel):
     name: str = Field(..., description="Название объявления")

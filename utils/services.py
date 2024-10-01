@@ -1,6 +1,9 @@
 import firebase_conf
+import shortuuid
 
 from firebase_admin import db, storage
+from datetime import timedelta
+from urllib.parse import urlparse
 
 async def get_payment_method(id: int):
     # Получаем все способы оплаты и переобразуем в массив
@@ -30,3 +33,33 @@ async def delete_service_from_db(service_id: str):
     ref = db.reference(f'/services/{service_id}')
     ref.delete()
 
+bucket = storage.bucket()
+
+def extract_file_path_from_url(url):
+    parsed_url = urlparse(url)
+    path = parsed_url.path
+    # Удаляем префикс "/"
+    file_path = path[1:]
+    return file_path
+
+async def delete_service_image(file_url):
+    file_path = extract_file_path_from_url(file_url)
+    blob = bucket.blob(file_path)
+    blob.delete()
+    print(f"File {file_path} deleted successfully.")
+
+async def upload_service_image(res_content, service_id, content_type):
+    bucket = storage.bucket()
+    random_id = shortuuid.uuid()
+    new_filename = f"{service_id}_{random_id}.jpg"
+    file_path = f"services/{service_id}/{new_filename}"
+
+    blob = bucket.blob(file_path)
+    blob.upload_from_string(res_content, content_type=content_type)
+
+    # Make the file public for infinite access
+    blob.make_public()
+
+    new_image_url = blob.public_url
+
+    return new_image_url
