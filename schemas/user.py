@@ -7,6 +7,7 @@ from datetime import datetime
 
 class PhoneVerificationRequest(BaseModel):
     phone_number: str
+    token: str
 
 
 class EmailRegistration(BaseModel):
@@ -32,6 +33,7 @@ class User(BaseModel):
     rating: int = Field(default=0)
     region_id: Optional[int] = None
     is_verified: Optional[bool] = None
+    services: Optional[list] = None
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.now)
     last_active: datetime = Field(default_factory=datetime.now)

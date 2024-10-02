@@ -127,11 +127,13 @@ async def send_phone_verification_code(data: PhoneVerificationRequest):
     try:
         # Отправка кода подтверждения на номер телефона
         phone_number = data.phone_number
+        token = data.token
+
         url = f"https://identitytoolkit.googleapis.com/v1/accounts:sendVerificationCode?key={FIREBASE_API_KEY}"
         payload = {
             "phoneNumber": phone_number,
             # Замените на реальный токен reCAPTCHA
-            "recaptchaToken": "YOUR_RECAPTCHA_TOKEN"
+            "recaptchaToken": token
         }
         response = requests.post(url, json=payload)
 

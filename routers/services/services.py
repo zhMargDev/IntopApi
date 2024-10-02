@@ -42,6 +42,7 @@ from utils.services import (
     delete_service_from_db,
     upload_service_image
 )
+from utils.location import get_location_name
 from utils.main import delete_picture_from_storage
 
 router = APIRouter()
@@ -228,6 +229,8 @@ async def add_new_service(
             # Загрузка файла и получение URL-адреса
             new_image_url = await upload_service_image(res_content, service_id, picture.content_type)
             picture_urls.append(new_image_url)
+    
+    location_name = await get_location_name(lat, lon)
 
     # Сохранение информации о новой услуге в базу данных
     service_data = {
@@ -244,6 +247,7 @@ async def add_new_service(
         "owner_id": uid,
         "is_store": False,
         "service_category_id": service_category_id,
+        "location_name":location_name,
         "start_time": start_time,
         "end_time": end_time,
         "created_at": datetime.now().isoformat(),
@@ -257,6 +261,14 @@ async def add_new_service(
 
     # Добавляем новую запись в Firebase Realtime Database
     db.reference(f"/services/{service_id}").set(service_data)
+
+    # Обновление данных пользователя
+    user_ref = db.reference(f"/users/{uid}")
+    user_data = user_ref.get()
+    if "services" not in user_data:
+        user_data["services"] = []
+    user_data["services"].append(service_id)
+    user_ref.set(user_data)
 
     return {"message": "Услуга успешно добавлена", "service": service_data}
 
@@ -292,6 +304,9 @@ async def update_service(
         raise HTTPException(
             status_code=403, detail="У вас нет прав для обновления этого сервиса."
         )
+    
+    location_name = await get_location_name(lat, lon)
+    print(location_name)
 
     # Обновляем данные сервиса, которые были переданы в запросе
     updated_data = {
@@ -305,6 +320,7 @@ async def update_service(
         "description": description,
         "price": price,
         "currency": currency,
+        "location_name": location_name,
         "owner_id": uid,
         "is_store": False,
         "service_category_id": service_category_id,
@@ -312,9 +328,27 @@ async def update_service(
         "end_time": end_time
     }
 
+    picture_urls = []
+
+    bucket = storage.bucket()
+    current_pictures = service.get("pictures", [])
+
+    # Проверка и удаление старых картинок которых нету в old_pictures
+    print(old_pictures)
+    for picture_url in current_pictures:
+        print(picture_url)
+        if old_pictures:
+            if picture_url not in old_pictures:    
+                blob = bucket.blob(f'services/{service_id}/' + picture_url.split('/')[-1])
+                blob.delete()
+            else:
+                # Сохраняем адреса картинок которые не были удалены
+                picture_urls.append(picture_url)
+        else:
+            picture_urls.append(picture_url)
+
     # Добавление новых картинок
     if new_pictures:
-        picture_urls = []
         for picture in new_pictures:
             # Чтение содержимого файла
             picture.file.seek(0)
@@ -324,21 +358,7 @@ async def update_service(
             new_image_url = await upload_service_image(res_content, service_id, picture.content_type)
             picture_urls.append(new_image_url)
 
-    # Удаление старых картинок, которых нет в old_pictures
-    bucket = storage.bucket()
-    current_pictures = service.get("pictures", [])
-    if old_pictures:
-        for picture_url in current_pictures:
-            if picture_url not in old_pictures:
-                blob = bucket.blob(picture_url.split('/')[-1])
-                blob.delete()
-
-    # Обновление списка картинок
-    if new_pictures or old_pictures:
-        updated_pictures = old_pictures if old_pictures else []
-        if new_pictures:
-            updated_pictures.extend(picture_urls)
-        updated_data["pictures"] = updated_pictures
+    updated_data['pictures'] = picture_urls
 
     # Если имеются время работы то добавляем их
     if payment_method_id:
@@ -384,6 +404,13 @@ async def delete_service(
 
     # Удаляем сервис из базы данных
     await delete_service_from_db(service_id)
+
+    # Обновление данных пользователя
+    user_ref = db.reference(f"/users/{uid}")
+    user_data = user_ref.get()
+    if "services" in user_data:
+        user_data["services"].remove(service_id)
+    user_ref.set(user_data)
 
     return {"message": "Сервис успешно удален"}
 
@@ -442,6 +469,7 @@ async def book_service(
 @router.get(
     "/get_user_booked_services",
     summary="Получение забронированных услуг пользователем.",
+    description=services_documentation.get_user_booked_services
 )
 async def get_user_booked_services(current_user: dict = Depends(get_current_user)):
     # Проверка на существование пользователя из токена
@@ -465,7 +493,10 @@ async def get_user_booked_services(current_user: dict = Depends(get_current_user
         service_data = service_ref.get()
 
         if service_data is None:
-            continue  # Пропускаем, если услуга не найдена
+            # если услуга не найдена, удаляем её из списка забронированных услуг пользователя
+            booked_services_ids.remove(service_id)
+            ref.update({'booked_services': booked_services_ids})
+            continue
 
         # Получаем данные владельца услуги
         owner_id = service_data.get('owner_id')
@@ -480,6 +511,9 @@ async def get_user_booked_services(current_user: dict = Depends(get_current_user
             'service': service_data,
             'owner': owner_data
         })
+    if len(data) < 1:
+        raise HTTPException(
+            status_code=404, detail="Забронированных услуг не найдено")
 
     return data
 

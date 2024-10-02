@@ -61,12 +61,12 @@ class ServiceWorkTimesSchema(BaseModel):
     class Config:
         from_attributes = True
 
-
 class ServiceSchema(BaseModel):
     id: str
     name: str
     lat: float
     lon: float
+    location_name: Optional[str] = None
     rating_count: Optional[int] = 0
     views_count: Optional[int] = 0
     description: Optional[str] = None
