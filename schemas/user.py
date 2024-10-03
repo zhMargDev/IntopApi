@@ -4,6 +4,8 @@ from pydantic import BaseModel, EmailStr, Field, validator
 from typing import List, Optional
 from datetime import datetime
 
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
 
 class PhoneVerificationRequest(BaseModel):
     phone_number: str
@@ -39,7 +41,7 @@ class User(BaseModel):
     last_active: datetime = Field(default_factory=datetime.now)
     password: str
     verification_id: Optional[str] = None
-    verification_code: Optional[str] = None
+    verification_code: Optional[int] = None
 
 
 class GoogleAccountUser(BaseModel):

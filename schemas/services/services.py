@@ -73,6 +73,7 @@ class ServiceSchema(BaseModel):
     price: float
     currency: str
     owner_id: str
+    owner: Optional[dict] = None
     is_active: bool
     date: Optional[int] = None
     pictures: Optional[list] = None

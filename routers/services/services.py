@@ -151,6 +151,15 @@ async def get_services(
             raise HTTPException(
                 status_code=404, detail="Услуга по указанному id не найдена."
             )
+        
+        # Получаем данные владельца услуги
+        owner_id = data.get('owner_id')
+        owner_data = None
+        if owner_id:
+            owner_ref = db.reference(f'/users/{owner_id}')
+            owner_data = owner_ref.get()
+        
+        data["owner"] = owner_data
 
         return [data]
 
@@ -432,15 +441,44 @@ async def book_service(
 
     if current_user["uid"] != uid:
         raise HTTPException(
-            status_code=401, details="Неиндентифицированный пользователь."
+            status_code=401, detail="Неиндентифицированный пользователь."
         )
 
-    # Проверяем чтобы пользователь не был владельцем объявления
-    if db.reference(f"/services/{service_id}").get()["owner_id"] == uid:
+    if not date or not service_id:
         raise HTTPException(
-            status_code=401, details="Владелец не может забронировать.")
+            status_code=422, detail="Неправильные данные."
+        )
 
-    # Генерация индетфикатора
+    # Получаем данные пользователя
+    user_ref = db.reference(f"/users/{uid}")
+    user_data = user_ref.get()
+
+    if user_data is None:
+        raise HTTPException(
+            status_code=404, detail="Пользователь не найден."
+        )
+
+    # Проверяем, не бронировал ли пользователь уже эту услугу
+    if "booked_services" in user_data:
+        for booking in user_data["booked_services"]:
+            if booking["service_id"] == service_id:
+                raise HTTPException(
+                    status_code=401, detail="Вы уже бронировали эту услугу."
+                )
+
+    # Проверяем, чтобы пользователь не был владельцем объявления
+    service = db.reference(f"/services/{service_id}").get()
+    if not service:
+        raise HTTPException(
+            status_code=404, detail="Услуга не найдена."
+        )
+
+    if service["owner_id"] == uid:
+        raise HTTPException(
+            status_code=401, detail="Владелец не может забронировать."
+        )
+
+    # Генерация идентификатора
     booking_id = shortuuid.uuid()
 
     def check_id_unique(booking_id):
@@ -457,11 +495,22 @@ async def book_service(
         "user_id": uid,
         "service_id": service_id,
         "date": date,
-        "tile": time,
+        "service_owner_id": service["owner_id"],
+        "booked_at": datetime.now().isoformat(),
+        "status": "booked"
     }
 
+    if time is not None:
+        booking_data["time"] = time
+
     # Добавляем новую запись в Firebase Realtime Database
-    db.reference(f"/booking_services/{booking_id}").set(booking_data)
+    db.reference(f"/booked_services/{booking_id}").set(booking_data)
+
+    # Добавляем идентификатор бронирования в список booked_services пользователя
+    if "booked_services" not in user_data:
+        user_data["booked_services"] = []
+    user_data["booked_services"].append(booking_data)
+    user_ref.set(user_data)
 
     return {"message": "Услуга успешно забронирована", "booking": booking_data}
 
@@ -484,18 +533,18 @@ async def get_user_booked_services(current_user: dict = Depends(get_current_user
         raise HTTPException(
             status_code=404, detail="Забронированных услуг не найдено")
 
-    booked_services_ids = user_data['booked_services']
+    booked_services = user_data['booked_services']
     data = []
 
-    for service_id in booked_services_ids:
+    for booking in booked_services:
         # Получаем данные услуги
-        service_ref = db.reference(f'/services/{service_id}')
+        service_ref = db.reference(f'/services/{booking["service_id"]}')
         service_data = service_ref.get()
 
         if service_data is None:
             # если услуга не найдена, удаляем её из списка забронированных услуг пользователя
-            booked_services_ids.remove(service_id)
-            ref.update({'booked_services': booked_services_ids})
+            booked_services.remove(booking)
+            ref.update({'booked_services': booked_services})
             continue
 
         # Получаем данные владельца услуги
@@ -509,7 +558,8 @@ async def get_user_booked_services(current_user: dict = Depends(get_current_user
         # Формируем данные для ответа
         data.append({
             'service': service_data,
-            'owner': owner_data
+            'owner': owner_data,
+            'booking': booking
         })
     if len(data) < 1:
         raise HTTPException(

@@ -20,6 +20,8 @@ app = FastAPI()
 # Настройка CORS
 origins = [
     "http://localhost",
+    "http://127.0.0.1",
+    "http://127.0.0.1:8080",
     "http://localhost:8080",
     "https://intop-project.web.app",
     "http://intop-project.web.app"
