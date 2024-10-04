@@ -88,6 +88,7 @@ async def register_with_email(data: User):
         # исключаем пароль из данных для записи
         user_data_dict = data.dict(exclude={"password"})
         user_data_dict["uid"] = user.uid
+        user_data_dict["username"] = data.username
 
         # сохранение всех данных в realtime database
         db.reference("users").child(user.uid).set(user_data_dict)
@@ -112,37 +113,39 @@ async def register_with_email(data: User):
     except firebaseerror as e:
         raise httpexception(status_code=400, detail=str(e))
 
-@router.post("/register_with_phone",
+@router.post("/auth_with_phone",
              summary="Регистрация через номер телефона.",
              description=authorization_documentation.register_with_email_description)
-async def register_with_phone(data: User):
+async def auth_with_phone(data: User):
     try:
-
-        # Проверяем чтобы был отправлен номер и код
+        # Проверяем, чтобы был отправлен номер телефона
         if data.phone_number is None:
             raise HTTPException(status_code=422, detail="Номер не указан.")
 
-        # Создание пользователя в Firebase с использованием номера телефона
-        user = auth.create_user(
-            phone_number=data.phone_number,
-            password=data.password
-        )
+        # Проверяем, существует ли аккаунт пользователя в узле users/uid в Realtime Database
+        user_ref = db.reference("users").order_by_child("phone_number").equal_to(data.phone_number).get()
+
+        # Если аккаунт с указанным номером телефона существует, возвращаем сообщение
+        if user_ref:
+            return {"message": "Аккаунт с указанным номером телефона уже существует."}
+
+        # Получение данных пользователя из Firebase Authentication
+        user_record = auth.get_user_by_phone_number(data.phone_number)
 
         data.created_at = data.created_at.isoformat()
         data.last_active = data.last_active.isoformat()
 
         # Преобразование модели User в словарь для записи в Realtime Database
-        # Исключаем пароль из данных для записи
-        user_data_dict = data.dict(exclude={"password"})
-        user_data_dict["uid"] = user.uid
+        user_data_dict = data.dict()
+        user_data_dict["uid"] = user_record.uid
+        user_data_dict["username"] = data.username
 
         # Сохранение всех данных в Realtime Database
-        db.reference("users").child(user.uid).set(user_data_dict)
+        db.reference("users").child(user_record.uid).set(user_data_dict)
 
         # Возврат сообщения об успешной регистрации
-        # return {"message": "Код подтверждения отправлен на ваш номер телефона. Проверьте SMS."}
-        return {"message": "Аккаунт успешно создан."}
-    except FirebaseError as e:
+        return {"message": "Аккаунт успешно зарегистрирован."}
+    except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -172,31 +175,6 @@ async def login_with_email(data: EmailRegistration, response: Response):
         return response
     except FirebaseError as e:
         raise HTTPException(status_code=400, detail=str(e))
-
-
-@router.post("/login_with_phone_number",
-             summary="Вход через номер телефона.",
-             description=authorization_documentation.login_with_phone_number_description)
-async def login_with_phone_number(data: PhoneVerification, response: Response):
-    try:
-        py_auth = firebase.auth()
-        # Выполнение входа пользователя для получения токена
-        user_credentials = py_auth.sign_in_with_phone_number(
-            data.phone_number, data.password)
-        id_token = user_credentials['idToken']
-        refresh_token = user_credentials['refresh_token']
-
-        # Получение пользователя по номеру телефона
-        user = auth.get_user_by_phone_number(data.phone_number)
-
-        # Установка токена в куки
-        response = JSONResponse(content={
-                                "message": "Пользователь авторизован.", "user_id": user.uid, "jwtToken": id_token, "refresh_token": refresh_token})
-
-        return response
-    except FirebaseError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
 
 @router.post('/auth_with_google',
              summary="Авторизация через гугл аккаунт.",

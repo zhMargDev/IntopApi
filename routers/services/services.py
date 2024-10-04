@@ -1,6 +1,7 @@
 import os
 import shortuuid
 import firebase_conf
+import json
 
 from firebase_admin import auth, db, storage
 from fastapi import (
@@ -13,6 +14,7 @@ from fastapi import (
     Form,
     Query,
     Header,
+    Response
 )
 from sqlalchemy.orm import Session, joinedload
 from starlette.responses import JSONResponse
@@ -568,7 +570,8 @@ async def get_user_booked_services(current_user: dict = Depends(get_current_user
     return data
 
 @router.get('/get_my_services',
-            summary="Получение всех услуг авторизованного пользователя.")
+            summary="Получение всех услуг авторизованного пользователя.",
+            description=services_documentation.get_my_services)
 async def get_my_services(
     uid: str,
     current_user: dict = Depends(get_current_user)
@@ -594,3 +597,61 @@ async def get_my_services(
     services.reverse()
 
     return services
+
+@router.post('/like_service_event',
+             summary="Добавление или удаление услуги в лайки пользователя.",
+             description=services_documentation.like_service_event
+             )
+async def like_service_event(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+):
+    request_data = await request.json()
+    uid = request_data.get("uid")
+    service_id = request_data.get("service_id")
+
+    if not uid or uid != current_user["uid"]:
+        raise HTTPException(status_code=403, detail="Неидентифицированный пользователь.")
+        
+    if not service_id:
+        raise HTTPException(status_code=404, detail="Услуга не найден.")
+        
+    # Проверяем существует ли услуга
+
+    service_ref = db.reference(f'/services/{service_id}')
+    service_data = service_ref.get()
+        
+    if service_data is None:
+        raise HTTPException(status_code=404, detail="Услуга не найден.")
+
+    # Проверяем не является ли пользователь владельцем
+    if service_data["owner_id"] == uid:
+        raise HTTPException(status_code=402, detail="Владелец не может лайкать своё объявление.")
+
+    # Получаем данные пользователя
+    user_ref = db.reference(f"/users/{uid}")
+    user_data = user_ref.get()
+
+    # Проверяем есть ли массив с лайками услуг у пользователя, создаём если нету
+    if "liked_services" not in user_data:
+        user_data["liked_services"] = []
+
+    res_status_code = 200
+    res_text = ""
+
+    # Проверяем есть ли в массиве лайков указанной услуги, если есть удаляем если нету добавляем
+    if service_id in user_data["liked_services"]:
+        user_data["liked_services"].remove(service_id)
+        res_status_code = 200
+        res_text = "Лайк с услуги успешно снят."
+    else:
+        user_data["liked_services"].append(service_id)
+        res_status_code = 201
+        res_text = "Лайк успешно зарегестрирован."
+
+    user_ref.update(user_data)
+
+    return Response(
+        status_code=res_status_code,
+        content=json.dumps({"message": res_text}),
+    )

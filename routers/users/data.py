@@ -2,6 +2,7 @@ import shutil
 import os
 import shortuuid
 import firebase_conf
+import json
 
 from firebase_admin import auth, db, storage
 from fastapi import (
@@ -308,6 +309,7 @@ async def likeUserEvent(
         if not uid:
             raise HTTPException(status_code=400, detail="UID не предоставлен")
 
+        # Пользователь с префиксом U_ это тот кого добавляют или удаляют из лайков
         # Проверка на существования пользователя по отправленному uid
         u_ref = db.reference(f"/users/{uid}")
         u_user_data = u_ref.get()
@@ -329,26 +331,25 @@ async def likeUserEvent(
             user_data["liked_users"] = []
 
         res_status_code = 200
+        res_text = ""
 
         # Проверяем, есть ли uid в списке liked_users
         if uid in user_data["liked_users"]:
             user_data["liked_users"].remove(uid)
-            # Если массив стал пустым, удаляем его
             res_status_code = 200
-            ref.update(user_data)
-
-            print(user_data)
+            res_text = "Пользователь удален из лайков"
         else:
             # Если пользователя не было в массиве, то добавляем
             user_data["liked_users"].append(uid)
             res_status_code = 201
-            ref.update(user_data)
+            res_text = "Пользователь добавлен в лайки"
 
         # Обновляем данные пользователя в базе данных
-
+        ref.update(user_data)
+        
         return Response(
             status_code=res_status_code,
-            content='{"message": "Пользователь удален из лайков"}',
+            content=json.dumps({"message": res_text}),
         )
 
     except Exception as e:
