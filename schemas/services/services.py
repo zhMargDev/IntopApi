@@ -61,6 +61,7 @@ class ServiceWorkTimesSchema(BaseModel):
     class Config:
         from_attributes = True
 
+
 class ServiceSchema(BaseModel):
     id: str
     name: str
@@ -79,10 +80,12 @@ class ServiceSchema(BaseModel):
     pictures: Optional[list] = None
     service_category_id: int
     payment_method_id: Optional[int] = None
+    reviews: Optional[list] = None
     is_store: bool
     start_time: str
     end_time: str
     created_at: str
+
 
 class ServiceCreate(BaseModel):
     name: str = Field(..., description="Название объявления")

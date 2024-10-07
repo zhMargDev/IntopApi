@@ -354,3 +354,77 @@ async def likeUserEvent(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post('/save_workgin_days',
+             summary="Изменение рабочих дней пользователя.",
+             description=user_documentation.save_working_days)
+async def save_workgin_days(
+    request: Request, 
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        # Проверяем чтобы пользователь был авторизованным и тем кто должен быть
+        request_data = await request.json()
+        uid = request_data.get('uid')
+        working_week_days = request_data.get('working_week_days')
+
+        user_ref = db.reference(f'users/{current_user["uid"]}')
+        user_data = user_ref.get()
+
+        if not uid or uid != current_user["uid"] or not user_data:
+            raise HTTPException(status_code=403, detials="Неидентифицированный пользователь.")
+        
+        if not working_week_days:
+            raise HTTPException(status_code=404, details="Рабочие дни не отправлены.")
+        
+        if len(working_week_days) != 7:
+            raise HTTPException(status_code=402, details="Неправильное количество дней в неделе.")
+        
+        keys = ["title", "active", "start_time", "end_time"]
+        # Проверка формата данных в массиве
+        for day in working_week_days:
+            for key in keys:
+                if not key in day:
+                    raise HTTPException(status_code=422, detail="Неправильный формат данных.")
+        
+        # Регулярное выражение для проверки формата HH:MM
+        time_pattern = re.compile(r'^([01][0-9]|2[0-3]):[0-5][0-9]$')
+
+        data = []
+        # Проверяем чтобы все данные в working_week_days были правильными
+        for day in working_week_days:
+            title = day["title"]
+
+            start_time_flag = False
+            end_time_flag = False
+
+            if day["active"]:
+                start_time_flag = time_pattern.match(day["start_time"])
+                end_time_flag = time_pattern.match(day["end_time"])
+
+            if day["active"] and start_time_flag and end_time_flag:
+                data.append({
+                    "title": title,
+                    "active": True,
+                    "start_time": day["start_time"],
+                    "end_time": day["end_time"]
+                })
+            else:
+                data.append({
+                    "title": title,
+                    "active": False,
+                    "start_time": "",
+                    "end_time": ""
+                })
+            
+        user_data["working_week_days"] = data
+        user_ref.update(user_data)
+
+
+        return Response(
+            status_code=200,
+            content=json.dumps({"data": working_week_days}),
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
