@@ -292,6 +292,47 @@ async def getUserById(uid: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post(
+    "/get_users_by_id_array",
+    summary="Получение пользователей по массиву с UIDами.",
+    description=user_documentation.get_users_by_id_array,
+)
+async def get_users_by_id_array(request: Request):
+    try:
+        # Получаем пользователей
+        data = await request.json()
+        uids = data.get("uids")
+
+        # Проверяем тип 
+        if type(uids) != list:
+            raise HTTPException(status_code=422, details="Вы должны отправить массив.")
+        # Инициализируем пустой список для хранения данных пользователей
+        users_data = []
+
+        # Проходим по списку uids
+        for user_id in uids:
+            # Получаем ссылку на узел пользователя
+            ref = db.reference(f"/users/{user_id}")
+
+            # Получаем данные пользователя
+            user_data = ref.get()
+
+            if user_data is None:
+                continue
+
+            # Удаляем поле пароля
+            if "password" in user_data:
+                del user_data["password"]
+
+            # Добавляем данные пользователя в список
+            users_data.append(user_data)
+
+        # Возвращаем список данных пользователей
+        return users_data
+    except Exception as e:
+        # Возвращаем ошибку, если что-то пошло не так
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post(
     "/like_user_event",
