@@ -14,6 +14,7 @@ from routers.services.services_categories import router as services_categories_r
 from routers.services.services import router as services_router
 from routers.services.payment_methods import router as payment_methods_router
 from routers.location.data import router as location_router
+from routers.chats import router as chats_router
 
 app = FastAPI()
 
@@ -95,3 +96,6 @@ app.include_router(payment_methods_router,
                    prefix="/payment_methods", tags=["Способы оплаты"])
 # Объявление локаций
 app.include_router(location_router, prefix="/location", tags=["Локации"])
+
+# Объявляем чаты
+app.include_router(chats_router, prefix="/chats", tags=["Чаты"])
