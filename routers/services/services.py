@@ -177,6 +177,30 @@ async def get_services(
 
     return services
 
+@router.post(
+    "/by_ids_array",
+    summary="Получение усулг по массиву id.",
+    description=services_documentation.by_ids_array
+)
+async def by_ids_array(request: Request):
+    request_data = await request.json()
+    ids = request_data.get("ids")
+
+    if ids is None or len(ids) < 1:
+        raise HTTPException(status_code=422, detail="Id услуг не указаны.")
+
+    services = []
+
+    # Пробегаемся по массиву id услуг
+    for service_id in ids:
+        ref = db.reference(f"/services/{service_id}")
+        data = ref.get()
+
+        # Добавляем в массив
+        services.append(data)
+
+    return services
+
 
 @router.post(
     "/add",

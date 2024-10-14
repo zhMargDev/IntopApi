@@ -18,11 +18,13 @@ from typing import List
 
 from utils.user import get_current_user
 from utils.chats import addChatToUsers, upload_picture_to_storage, create_new_chat, add_message_to_chat, getChatByUserId
+from documentation.chats import chats as chats_ducumentation
 
 router = APIRouter()
 
 @router.post('/send_new_message',
-    summary="Эндпоинт для добавления нового сообщения в базу.")
+    summary="Эндпоинт для добавления нового сообщения в базу.",
+    description=chats_ducumentation.send_new_message)
 async def send_new_message(
     current_user: dict = Depends(get_current_user),
     text: str = Form(...),
@@ -44,11 +46,11 @@ async def send_new_message(
     user_data = user_ref.get()
 
     if not user_data:
-        raise HTTPException(status_code=404, detail="Пользователь не найден.")
+        raise HTTPException(status_code=403, detail="Пользователь не найден.")
 
     # Проверяем чтобы получатель не был отправителем
     if recipient_id and recipient_id == uid:
-        raise HTTPException(status_code=404, detail="Нельзя отправлять сообщение самому себе.")
+        raise HTTPException(status_code=405, detail="Нельзя отправлять сообщение самому себе.")
     else:
         # Получаем данные поулчателя сообщений чтобы узнатть существует ли он
         recipient_user_ref = db.reference(f"/users/{recipient_id}")
