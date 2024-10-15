@@ -341,7 +341,6 @@ async def update_service(
         )
     
     location_name = await get_location_name(lat, lon)
-    print(location_name)
 
     # Обновляем данные сервиса, которые были переданы в запросе
     updated_data = {
@@ -369,9 +368,7 @@ async def update_service(
     current_pictures = service.get("pictures", [])
 
     # Проверка и удаление старых картинок которых нету в old_pictures
-    print(old_pictures)
     for picture_url in current_pictures:
-        print(picture_url)
         if old_pictures:
             if picture_url not in old_pictures:    
                 blob = bucket.blob(f'services/{service_id}/' + picture_url.split('/')[-1])
@@ -679,3 +676,48 @@ async def like_service_event(
         status_code=res_status_code,
         content=json.dumps({"message": res_text}),
     )
+
+@router.delete('/cancel_booking',
+    summary="Отмена бронирования."
+)
+async def cancel_booking(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+):
+    request_data = await request.json()
+    uid = request_data.get("uid")
+    booking_id = request_data.get("booking_id")
+    if not uid or uid != current_user["uid"]:
+        raise HTTPException(status_code=403, detail="Неидентифицированный пользователь.")
+    
+    if not booking_id:
+        raise HTTPException(status_code=422, detail="Id бронирования не указан.")
+        
+    user_ref = db.reference(f"/users/{uid}")
+    user_data = user_ref.get()
+    if user_data is None:
+        raise HTTPException(status_code=403, detail="Неидентифицированный пользователь.")
+        
+    owner_id = None
+    # Проверяем есть ли у пользователя бронь данного сервиса
+    if "booked_services" in user_data:
+        for booking in user_data["booked_services"]:
+            if booking["id"] == booking_id:
+                owner_id = booking["service_owner_id"]
+                user_data["booked_services"].remove(booking)
+                break
+    
+    # Сохраняем изменения в базе данных Firebase
+    user_ref.set(user_data)
+    if owner_id is not None:
+        owner_ref = db.reference(f'/users/{owner_id}')
+        owner_data = owner_ref.get()
+        if owner_data is not None and "my_booked_services" in owner_data:
+            for booking in owner_data["my_booked_services"]:
+                if booking["id"] == booking_id:
+                    owner_data["my_booked_services"].remove(booking)
+    return {"message": "Бронирование успешнно удалено."}
+    try:
+        pass
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Error: {e}")
