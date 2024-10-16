@@ -115,3 +115,9 @@ class BookServiceRequest(BaseModel):
     date: str = Field(...,
                       description="Дата бронирования в формате YYYY-MM-DD")
     time: str = Field(..., description="Время бронирования в формате HH:MM")
+
+class AddServiceReview(BaseModel):
+    uid: str = Field(..., description="Id Пользователя")
+    service_id: str = Field(...,description="Id услуги.")
+    rating: int = Field(..., description="Количество звёзд от 1 до 5")
+    message: Optional[str] = Field(None, description="Необъязательный паарметр, сообщение.")
