@@ -93,7 +93,6 @@ async def add_new_review(
     rating = request_data.get('rating')
     message = request_data.get('message')
 
-    print(request_data)
     # Провряем пользователя на авторизованность
     if uid != current_user["uid"]:
         raise HTTPException(status_code=403, detail="Неавторизованный пользователь.")
