@@ -6,6 +6,7 @@ class ServiceCategoryResponse(BaseModel):
     title: str
     description: str
     picture: str
+    vector_picture: Optional[str] = None
     subcats: List['ServiceCategoryResponse'] = []
 
     class Config:

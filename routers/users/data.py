@@ -96,7 +96,9 @@ async def update_user(
     username: str = Form(None),
     avatar: UploadFile = File(None),
     old_password: str = Form(None),
-    new_password: str = Form(None)
+    new_password: str = Form(None),
+    languages: list = Form(None),
+    experience: list = Form(None)
 ):
     try:
         if current_user["uid"] != uid:
@@ -111,7 +113,9 @@ async def update_user(
         update_status = {
             "username": "no",
             "avatar": "no",
-            "password": "no"
+            "password": "no",
+            "languages": "no",
+            "experience": "no"
         }
 
         # Проверяем отправлен ли параметр и изменяем его
@@ -126,7 +130,11 @@ async def update_user(
             if user_data.get("avatar"):
                 await delete_picture_from_storage(user_data["avatar"])
 
-            user_avatar_url = await upload_user_avatar_with_file(avatar, uid)
+            # Чтение содержимого файла
+            avatar.file.seek(0)
+            res_content = avatar.file.read()
+
+            user_avatar_url = await upload_user_avatar_with_file(res_content, uid, avatar.content_type)
             user_data["avatar"] = user_avatar_url
             update_status["avatar"] = "success"
 
@@ -146,9 +154,25 @@ async def update_user(
                     update_status["password"] = "success"
                 except Exception as e:
                     update_status["password"] = "Действующий пароль указан неверно."
+        
+        # Проверяем указаны ли языки и меняем их
+        if languages and len(languages) > 0:
+            user_data["languages"] = languages 
+            update_status["languages"] = "success"
+        else:
+            user_data["languages"] = []
+            update_status["languages"] = "success"
+
+        if experience and len(experience) > 0:
+            user_data["experience"] = experience 
+            update_status["experience"] = "success"
+        else:
+            user_data["experience"] = []
+            update_status["experience"] = "success"
 
         # Обновляем время последней активности
         user_data["last_active"] = datetime.now().isoformat()
+
 
         # Записываем обновленные данные в базу
         user_ref.set(user_data)

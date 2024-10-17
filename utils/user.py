@@ -58,28 +58,24 @@ async def upload_user_avatar(res_content, uid):
 
     return new_avatar_url
 
-async def upload_user_avatar_with_file(file_path, uid):
-    # Инициализация клиента для работы с облачным хранилищем
-    storage_client = storage.Client()
+async def upload_user_avatar_with_file(res_content, uid, content_type):
+    bucket = storage.bucket()
 
-    # Получение ссылки на бакет
-    bucket = storage_client.bucket('your-bucket-name')
-
-    # Создание объекта blob для загрузки файла
     blob = bucket.blob(f'users/avatars/{uid}.jpg')
+    blob.upload_from_string(res_content, content_type=content_type)
 
-    # Загрузка файла в облачное хранилище
-    with open(file_path, 'rb') as file:
-        blob.upload_from_file(file, content_type='image/jpeg')
+    # Make the file public for infinite access
+    blob.make_public()
 
-    # Генерация URL для доступа к файлу
-    new_avatar_url = blob.generate_signed_url(
-        timedelta(seconds=300), method='GET')
+    new_image_url = blob.public_url
 
-    return new_avatar_url
+    return new_image_url
 
 # Пример функции для удаления картинки из Firebase Storage
 async def delete_picture_from_storage(picture_url: str):
-    bucket = storage.bucket()
-    blob = bucket.blob(picture_url.split('/')[-1])
-    blob.delete()
+    try:
+        bucket = storage.bucket()
+        blob = bucket.blob(picture_url.split('/')[-1])
+        blob.delete()
+    except:
+        return 'No Such file or directory'
