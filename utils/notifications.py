@@ -52,7 +52,7 @@ async def set_notifications_array(notifications):
     for notification in notifications:
 
         # Получаем данные пользователя от которого пришло уведомление
-        rec_user_ref = db.reference(f"/users/{notification["user_id"]}")
+        rec_user_ref = db.reference(f"/users/{notification['user_id']}")
         rec_user_data = rec_user_ref.get()
 
         if not rec_user_data:
