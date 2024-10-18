@@ -21,6 +21,8 @@ from routers.services.reviews import router as service_reviews_router
 from routers.location.data import router as location_router
 from routers.chats import router as chats_router
 
+from routers.notifications import router as notifications_router
+
 app = FastAPI()
 
 # Настройка CORS
@@ -89,3 +91,6 @@ app.include_router(location_router, prefix="/location", tags=["Локации"])
 
 # Объявляем чаты
 app.include_router(chats_router, prefix="/chats", tags=["Чаты"])
+
+# Объявляем роутер уведомлений
+app.include_router(notifications_router, prefix="/notifications", tags=["Уведомления"])
