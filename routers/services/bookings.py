@@ -117,7 +117,7 @@ async def book_service(
     user_ref.set(user_data)
 
     # Добавляем бронь в my_booked_services владельца услуги
-    owner_ref =  db.reference(f"/users/{service.get("owner_id")}")
+    owner_ref =  db.reference(f"/users/{service['owner_id']}")
     owner_data = owner_ref.get()
 
     # Проверяем есть ли у владельца массив с бронями, если нету создаём
