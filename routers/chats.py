@@ -17,7 +17,7 @@ from fastapi import (
 from typing import List
 
 from utils.user import get_current_user
-from utils.chats import addChatToUsers, upload_picture_to_storage, create_new_chat, add_message_to_chat, getChatByUserId
+from utils.chats import addChatToUsers, upload_picture_to_storage, create_new_chat, add_message_to_chat, getChatByUserId, change_chat_last_action
 from documentation.chats import chats as chats_ducumentation
 
 router = APIRouter()
@@ -73,6 +73,9 @@ async def send_new_message(
         chat_id = await create_new_chat(user_id=uid, recipient_id=recipient_id, last_action=text)
         # Добавляем чат к обеим пользователям
         await addChatToUsers(users_ids=[uid, recipient_id], chat_id=chat_id)
+    else:
+        # Изменяем последнюю активность в чате
+        await change_chat_last_action(chat_id, pictures, text)
 
     # Добавляем сообщение в чат
     await add_message_to_chat(chat_id=chat_id, text=text, sender_id=uid, pictures=pictures)

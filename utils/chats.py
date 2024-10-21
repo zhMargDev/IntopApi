@@ -107,3 +107,27 @@ async def getChatByUserId(chats, user_id):
                 return chat_id
 
     return None
+
+async def change_chat_last_action(chat_id, pictures, text):
+    # Формируем последнее действие
+    last_action = ''
+
+    if pictures is not None and len(pictures) > 0:
+        last_action = 'Photo'
+    elif len(text) > 0:
+        last_action = text
+
+    # Создаём дату и время
+    now = datetime.datetime.now().isoformat()
+
+    # Находим чат
+    chat_ref = db.reference(f"/chats/{chat_id}")
+    chat_data = chat_ref.get()
+
+    # Меняем значения
+
+    chat_data["last_action"] = last_action
+    chat_data["last_action_date"] = now
+
+    # Сохраняем
+    chat_ref.set(chat_data)
