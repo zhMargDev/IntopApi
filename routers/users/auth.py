@@ -99,7 +99,9 @@ async def register_with_email(data: User):
         # выполнение входа пользователя для получения токена
         user_credentials = py_auth.sign_in_with_email_and_password(
             data.email, data.password)
-        id_token = user_credentials['idtoken']
+
+        print(user_credentials)
+        id_token = user_credentials['idToken']
 
         # отправка письма с кодом подтверждения
         try:
@@ -110,7 +112,7 @@ async def register_with_email(data: User):
 
         # возврат сообщения об успешной регистрации
         return {"message": "пользователь успешно зарегистрирован. пожалуйста, проверьте вашу почту для подтверждения."}
-    except firebaseerror as e:
+    except FirebaseError as e:
         raise httpexception(status_code=400, detail=str(e))
 
 @router.post("/auth_with_phone",

@@ -269,6 +269,7 @@ async def cancel_booking(
     
     # Сохраняем изменения в базе данных Firebase
     user_ref.set(user_data)
+    
     if owner_id is not None:
         owner_ref = db.reference(f'/users/{owner_id}')
         owner_data = owner_ref.get()
