@@ -279,7 +279,7 @@ async def cancel_booking(
                     owner_data["my_booked_services"].remove(booking)
                     break
         # Отправляем уведомление владельцу, что бронь отменили
-        owner_data = await add_new_notification(owner_data, user_data["uid"], 'Пользователь отменил бронирование.')
+        owner_data = await add_new_notification(owner_data, user_data["uid"], 'The user canceled the reservation')
 
         # Сохраняем изменения
         owner_ref.set(owner_data)
