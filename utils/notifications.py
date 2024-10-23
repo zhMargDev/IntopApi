@@ -24,7 +24,7 @@ async def check_date(date_str):
         return "earlier"
 
 async def add_new_notification(user_data, uid, message):
-    # Добавляем уведомление что забронировали услугу
+    # Добавляем уведомление
     if "notifications" not in user_data:
         user_data["notifications"] = []
 

@@ -31,7 +31,8 @@ from utils.services import (
     get_service_by_id,
     update_service_in_db,
     delete_service_from_db,
-    upload_service_image
+    upload_service_image,
+    remve_all_bookings_by_service_id
 )
 from utils.location import get_location_name
 
@@ -410,6 +411,9 @@ async def delete_service(
     if not service:
         raise HTTPException(status_code=404, detail="Сервис не найден.")
 
+    # Сохраняем название услуги для дальнейшего использования
+    service_name = service["name"]
+
     # Проверяем, что owner_id сервиса совпадает с uid текущего пользователя
     if service.get("owner_id") != uid or uid != current_user["uid"]:
         raise HTTPException(
@@ -430,7 +434,43 @@ async def delete_service(
     user_data = user_ref.get()
     if "services" in user_data:
         user_data["services"].remove(service_id)
+
+    # Удаляем услугу из забронированных услуг у пользователя
+    if "my_booked_services" in user_data:
+        for book in user_data["my_booked_services"]:
+            if book["service_id"] == service_id:
+                user_data["my_booked_services"].remove(book)
+
+    # Сохраняем изменения                
     user_ref.set(user_data)
+
+    # Находим и удаляем брони данной услуги у всех пользователей кто забронировал услугу
+    users_ids = await remve_all_bookings_by_service_id(service_id)
+
+    # Создаём сообщение для уведомелния
+    message = "The service you booked has been deleted"
+
+    # Отправляем сообщение пользователям
+    for user_uid in users_ids:
+        # Получаем данные пользователя
+        u_ref = db.reference(f"/users/{user_uid}")
+        u_data = u_ref.get()
+        # Добавляем уведомление
+        if "notifications" not in u_data:
+            u_data["notifications"] = []
+
+        # Осздаём  уведомление
+        new_notification = {
+            "id": shortuuid.uuid(),
+            "user_id": user_uid,
+            "message": message,
+            "dop_message": service_name,
+            "created_at": datetime.now().isoformat()
+        }
+
+        u_data["notifications"].append(new_notification)
+
+        u_ref.set(u_data)
 
     return {"message": "Сервис успешно удален"}
 
@@ -520,3 +560,4 @@ async def like_service_event(
         status_code=res_status_code,
         content=json.dumps({"message": res_text}),
     )
+

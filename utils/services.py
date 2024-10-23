@@ -63,3 +63,28 @@ async def upload_service_image(res_content, service_id, content_type):
     new_image_url = blob.public_url
 
     return new_image_url
+
+async def remve_all_bookings_by_service_id(service_id):
+    # Находим всех пользователей
+    users_ref = db.reference('/users')
+    users_data = users_ref.get()
+
+    # Создаём массив с id пользователей у которых будет удалена услуга
+    users_ids = []
+
+    # Проходимся по пользователям
+    for user in users_data:
+        if "booked_services" in user:
+            # Проходимся по забронированным услугам пользователя
+            for booking in user["booked_services"]:
+                if booking["service_id"] == service_id:
+                    # Удаляем услугу из забронированных услуг пользователя
+                    user["booked_services"].remove(booking)
+                    # Сохраняем id пользователя
+                    users_ids.append(user["uid"])
+
+    # Сохарняем данные пользователей
+    users_ref.set(users_data)
+
+    # Возвращаем массив с id пользователей
+    return users_ids

@@ -126,7 +126,7 @@ async def book_service(
 
     owner_data["my_booked_services"].append(booking_data)
     
-    owner_data = await add_new_notification(owner_data, user_data["uid"], 'Пользователь забронировал услугу.')
+    owner_data = await add_new_notification(owner_data, user_data["uid"], 'The user has booked a service')
     
     owner_ref.set(owner_data)
 

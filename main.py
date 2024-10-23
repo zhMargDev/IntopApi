@@ -32,7 +32,9 @@ origins = [
     "http://127.0.0.1:8080",
     "http://localhost:8080",
     "https://intop-project.web.app",
-    "http://intop-project.web.app"
+    "http://intop-project.web.app",
+    "https://muslimapp.info",
+    "http://muslimapp.info"
 ]
 
 app.add_middleware(
